@@ -1,0 +1,24 @@
+To do:
+
+X Start root minimized 
+
+X play gifs
+
+X Remove top of window 
+
+X click to close
+
+Make windows spawn randomly on screen
+
+Adjust max window size to fit in monitor
+
+Load all gif files in a directory
+
+Add transparency 
+
+Limit windows to spawning on a single monitor
+
+Add robust gif detection
+
+
+
