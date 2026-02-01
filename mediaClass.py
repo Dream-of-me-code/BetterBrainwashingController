@@ -2,7 +2,8 @@ import sys
 import os
 from PyQt6.QtWidgets import QApplication, QWidget, QLabel, QPushButton, QVBoxLayout, QFileDialog, QSlider
 from PyQt6.QtGui import QMovie
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal
+from Network_server import start_network_server
 
 class GifWindow(QWidget):
     def __init__(self, gif_path, title="Gif Player" ):
@@ -54,8 +55,13 @@ class GifWindow(QWidget):
         event.accept()
             
 class ControlWindow(QWidget):
+
+    open_gif_signal = pyqtSignal(str)
+
     def __init__(self):
         super().__init__()
+
+        self.open_gif_signal.connect(self.open_gif_from_network)
 
         self.setWindowTitle("Control Panel")
         self.setGeometry(100, 100, 200, 100)
@@ -85,13 +91,13 @@ class ControlWindow(QWidget):
         #Delay Slider
         self.delay_label = QLabel("Delay: 500 ms")
         layout.addWidget(self.delay_label)
-
         self.delay_slider = QSlider(Qt.Orientation.Horizontal)
         self.delay_slider.setMinimum(0)
         self.delay_slider.setMaximum(3000)
         self.delay_slider.setValue(500)
         self.delay_slider.valueChanged.connect(self.update_delay_label)
         layout.addWidget(self.delay_slider)
+
 
         self.spawn_delay_ms = 500
         self._gif_queue = []
@@ -105,6 +111,11 @@ class ControlWindow(QWidget):
         self.current_gif_path = os.path.join(os.path.dirname(__file__), "0.gif")
 
         self.show()
+
+    def open_gif_from_network(self, gif_path):
+
+        window = GifWindow(gif_path, os.path.basename(gif_path))
+        self.gif_windows.append(window)
 
     def open_gif(self):
         window = GifWindow(self.current_gif_path, os.path.basename(self.current_gif_path))
@@ -178,4 +189,5 @@ if __name__ == "__main__":
 
     control_win = ControlWindow()
 
+    start_network_server(control_win)
     sys.exit(app.exec())
