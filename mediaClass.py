@@ -1,8 +1,8 @@
 import sys
 import os
-from PyQt6.QtWidgets import QApplication, QWidget, QLabel, QPushButton, QVBoxLayout, QFileDialog
+from PyQt6.QtWidgets import QApplication, QWidget, QLabel, QPushButton, QVBoxLayout, QFileDialog, QSlider
 from PyQt6.QtGui import QMovie
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QTimer
 
 class GifWindow(QWidget):
     def __init__(self, gif_path, title="Gif Player" ):
@@ -59,18 +59,45 @@ class ControlWindow(QWidget):
 
         self.setWindowTitle("Control Panel")
         self.setGeometry(100, 100, 200, 100)
-
+        self.current_directory = os.path.dirname(__file__)
         layout = QVBoxLayout()
+
+        #Select File Button
+        self.select_file_button = QPushButton("Select Gif file")
+        self.select_file_button.clicked.connect(self.select_gif_file)
+        layout.addWidget(self.select_file_button)
 
         #Open GIF Button
         self.open_gif_button = QPushButton("Open GIF")
         self.open_gif_button.clicked.connect(self.open_gif)
         layout.addWidget(self.open_gif_button)
 
-        #Select File Button
-        self.select_file_button = QPushButton("Select Gif file")
-        self.select_file_button.clicked.connect(self.select_gif_file)
-        layout.addWidget(self.select_file_button)
+        #Select Folder Button
+        self.select_dir_button = QPushButton("Select Gif Folder")
+        self.select_dir_button.clicked.connect(self.select_directory)
+        layout.addWidget(self.select_dir_button)
+        
+        #Open All GIFs in Directory Button
+        self.open_all_gifs_in_directory_button  = QPushButton("Open All GIFs in Folder")
+        self.open_all_gifs_in_directory_button.clicked.connect(self.open_all_gifs_in_directory)
+        layout.addWidget(self.open_all_gifs_in_directory_button)
+
+        #Delay Slider
+        self.delay_label = QLabel("Delay: 500 ms")
+        layout.addWidget(self.delay_label)
+
+        self.delay_slider = QSlider(Qt.Orientation.Horizontal)
+        self.delay_slider.setMinimum(0)
+        self.delay_slider.setMaximum(3000)
+        self.delay_slider.setValue(500)
+        self.delay_slider.valueChanged.connect(self.update_delay_label)
+        layout.addWidget(self.delay_slider)
+
+        self.spawn_delay_ms = 500
+        self._gif_queue = []
+        self._spawn_timer = QTimer(self)
+        self._spawn_timer.timeout.connect(self.spawn_next_gif)
+
 
         self.setLayout(layout)
         self.gif_windows = []
@@ -81,6 +108,30 @@ class ControlWindow(QWidget):
 
     def open_gif(self):
         window = GifWindow(self.current_gif_path, os.path.basename(self.current_gif_path))
+        self.gif_windows.append(window)
+
+    def open_all_gifs_in_directory(self):
+        if not os.path.isdir(self.current_directory):
+            return
+        
+        self._gif_queue = [
+            os.path.join(self.current_directory, f)
+            for f in os.listdir(self.current_directory)
+            if f.lower().endswith(".gif")
+        ]
+
+        if not self._gif_queue:
+            return
+        
+        self._spawn_timer.start(self.spawn_delay_ms)
+
+    def spawn_next_gif(self):
+        if not self._gif_queue:
+            self._spawn_timer.stop()
+            return
+        
+        gif_path = self._gif_queue.pop(0)
+        window = GifWindow(gif_path, os.path.basename(gif_path))
         self.gif_windows.append(window)
 
     def select_gif_file(self):
@@ -95,6 +146,26 @@ class ControlWindow(QWidget):
 
             window = GifWindow(self.current_gif_path, os.path.basename(self.current_gif_path))
             self.gif_windows.append(window)
+
+    def select_directory(self):
+        directory = QFileDialog.getExistingDirectory(
+            self,
+            "Select GIF Folder",
+            self.current_directory
+        )
+
+        if directory:
+            self.current_directory = directory
+            self.select_dir_button.setText(
+                f"Folder: {os.path.basename(directory)}"
+            )
+
+    def update_delay_label(self, value):
+        self.spawn_delay_ms = value
+        self.delay_label.setText(f"Delay: {value} ms")
+
+        if self._spawn_timer.isActive():
+            self._spawn_timer.setInterval(value)
 
     def closeEvent(self, event):
         for window in self.gif_windows:
